@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Azerbaijan Live Data Dashboard — opendata.az</title>
+  <meta name="description" content="A live, open dashboard over Azerbaijan's national open data (opendata.az). Real-time country metrics and market signals — built as a static site, no backend." />
+  <meta property="og:title" content="Azerbaijan Live Data Dashboard" />
+  <meta property="og:description" content="Real-time country metrics & market signals from opendata.az — 769 official datasets, queried live in the browser." />
+  <link rel="preconnect" href="https://admin.opendata.az" />
+  <link rel="preconnect" href="https://data-storage.opendata.az" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">AZ</span>
+      <div>
+        <h1>Azerbaijan Live Data Dashboard</h1>
+        <p class="tagline">Real-time country metrics &amp; market signals — straight from <a href="https://opendata.az" target="_blank" rel="noopener">opendata.az</a></p>
+      </div>
+    </div>
+    <div class="status">
+      <span id="conn-dot" class="dot dot--pending"></span>
+      <span id="conn-text">connecting…</span>
+      <span id="refreshed" class="refreshed"></span>
+    </div>
+  </header>
+
+  <main>
+    <!-- KPI cards -->
+    <section class="kpis" id="kpis">
+      <div class="kpi"><div class="kpi-val" id="kpi-datasets">—</div><div class="kpi-label">Datasets</div></div>
+      <div class="kpi"><div class="kpi-val" id="kpi-categories">—</div><div class="kpi-label">Categories</div></div>
+      <div class="kpi"><div class="kpi-val" id="kpi-orgs">—</div><div class="kpi-label">Organizations</div></div>
+      <div class="kpi"><div class="kpi-val" id="kpi-csv">—</div><div class="kpi-label">CSV resources</div></div>
+    </section>
+
+    <div class="grid">
+      <!-- Categories chart -->
+      <section class="panel panel--wide">
+        <div class="panel-head">
+          <h2>Datasets by category</h2>
+          <p class="muted">Where the country publishes most data — click a bar to explore.</p>
+        </div>
+        <div class="chart-box"><canvas id="categoryChart"></canvas></div>
+      </section>
+
+      <!-- Market signal -->
+      <section class="panel panel--signal">
+        <div class="panel-head">
+          <h2>📈 Market signal</h2>
+          <p class="muted">Economics dominates the open data — the clearest read on the real economy.</p>
+        </div>
+        <div class="signal-num" id="signal-num">—</div>
+        <div class="signal-cap">economics datasets</div>
+        <button class="btn" data-cat="economics">Explore economy data →</button>
+      </section>
+    </div>
+
+    <!-- Economy insight: where is demand growing -->
+    <section class="panel" id="econ-panel">
+      <div class="panel-head">
+        <h2>🏭 Economy: where is demand growing?</h2>
+        <p class="muted">Employment by economic activity is a reliable proxy for sector demand — a sector that hires
+          more people is expanding. Below: how each sector's employment changed over the last 5 years
+          (<span id="econ-range">…</span>), straight from the live data. For founders: the green bars are the
+          sectors pulling in labour fastest. <b>Click any sector bar for a full data-driven breakdown.</b></p>
+      </div>
+      <div id="econ-takeaway" class="takeaway">Loading economy data… <span class="spinner"></span></div>
+      <div class="chart-box" style="height:460px"><canvas id="econChart"></canvas></div>
+      <p class="dnote">Source: «İqtisadi Fəaliyyət Növləri Təsnifatı üzrə məşğul əhalinin sayı» (employed
+        population by economic activity, thousands). Growth in jobs ≠ profitability — read it as a demand/expansion
+        signal, then validate the specific niche.</p>
+    </section>
+
+    <!-- Browser -->
+    <section class="panel">
+      <div class="panel-head browser-head">
+        <div>
+          <h2>Dataset explorer</h2>
+          <p class="muted">Search 769 official datasets. Open any one to chart it live.</p>
+        </div>
+        <input id="search" class="search" type="search" placeholder="Search datasets… e.g. metro, ixrac, təhsil" />
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="results" id="results"><div class="empty">Loading…</div></div>
+      <div class="results-foot" id="results-foot"></div>
+    </section>
+  </main>
+
+  <!-- Dataset detail drawer -->
+  <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+  <aside class="drawer" id="drawer" hidden aria-label="Dataset detail">
+    <button class="drawer-close" id="drawer-close" aria-label="Close">×</button>
+    <div id="drawer-body"></div>
+  </aside>
+
+  <footer class="footer">
+    <p>Built as a static site — data fetched live from the official CKAN API of
+      <a href="https://opendata.az" target="_blank" rel="noopener">opendata.az</a> (IDDA Open Data Portal).
+      No backend, no database, no API key.</p>
+    <p class="muted">Open data is published by Azerbaijani state bodies. This dashboard only visualizes it.</p>
+  </footer>
+</body>
+</html>
