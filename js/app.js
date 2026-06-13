@@ -172,6 +172,7 @@ async function openDataset(pkg) {
   const resources = (pkg.resources || []).filter((r) => r.url);
   const fmtOf = (r) => (r.format || '').toUpperCase();
   const csvRes = resources.find((r) => fmtOf(r) === 'CSV');
+  const xlsRes = resources.find((r) => fmtOf(r) === 'XLSX' || fmtOf(r) === 'XLS');
   const jsonRes = resources.find((r) => fmtOf(r) === 'JSON');
   const org = pkg.organization?.title || '';
   const portalLang = I18N.lang === 'en' ? 'en' : 'az';
@@ -190,6 +191,14 @@ async function openDataset(pkg) {
       const parsed = Papa.parse(text.trim(), { header: true, dynamicTyping: false, skipEmptyLines: true });
       if (!parsed.data.length || !(parsed.meta.fields || []).length) { wrap().innerHTML = resourceListHtml(resources, t('det.nochart')); return; }
       renderDetail(parsed.data, parsed.meta.fields);
+    } else if (xlsRes && typeof XLSX !== 'undefined') {
+      const buf = await (await fetch(xlsRes.url)).arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = ws ? XLSX.utils.sheet_to_json(ws, { defval: '' }) : [];
+      const fields = rows.length ? [...new Set(rows.flatMap((o) => Object.keys(o)))] : [];
+      if (rows.length && fields.length) renderDetail(rows, fields);
+      else wrap().innerHTML = resourceListHtml(resources, t('det.nochart'));
     } else if (jsonRes) {
       const data = await (await fetch(jsonRes.url)).json();
       const rows = Array.isArray(data) ? data
