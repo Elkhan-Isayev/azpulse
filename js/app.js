@@ -169,27 +169,65 @@ async function openDataset(pkg) {
   const body = $('#drawer-body');
   drawer.hidden = false; backdrop.hidden = false;
 
-  const csvRes = (pkg.resources || []).find((r) => (r.format || '').toUpperCase() === 'CSV') || (pkg.resources || [])[0];
+  const resources = (pkg.resources || []).filter((r) => r.url);
+  const fmtOf = (r) => (r.format || '').toUpperCase();
+  const csvRes = resources.find((r) => fmtOf(r) === 'CSV');
+  const jsonRes = resources.find((r) => fmtOf(r) === 'JSON');
   const org = pkg.organization?.title || '';
   const portalLang = I18N.lang === 'en' ? 'en' : 'az';
   body.innerHTML = `
     <h2>${escapeHtml(pkg.title || pkg.name)}</h2>
-    <div class="sub">${escapeHtml(org)} · ${t('det.resources', { n: (pkg.resources || []).length })}
+    <div class="sub">${escapeHtml(org)} · ${t('det.resources', { n: resources.length })}
       · <a href="https://opendata.az/${portalLang}/datasets/${pkg.name}" target="_blank" rel="noopener">${t('det.viewportal')}</a></div>
     ${pkg.notes ? `<p class="muted">${escapeHtml(pkg.notes).slice(0, 320)}</p>` : ''}
     <div id="detail-chart-wrap"><div class="empty"><span class="spinner"></span> ${t('det.loading')}</div></div>`;
 
-  if (!csvRes || !csvRes.url) {
-    $('#detail-chart-wrap').innerHTML = `<div class="empty">${t('det.nocsv')}</div>`;
-    return;
-  }
+  const wrap = () => $('#detail-chart-wrap');
   try {
-    const text = await (await fetch(csvRes.url)).text();
-    const parsed = Papa.parse(text.trim(), { header: true, dynamicTyping: false, skipEmptyLines: true });
-    renderDetail(parsed.data, parsed.meta.fields || []);
+    if (csvRes) {
+      const text = await (await fetch(csvRes.url)).text();
+      if (looksBinary(text)) { wrap().innerHTML = resourceListHtml(resources, t('det.binary')); return; }
+      const parsed = Papa.parse(text.trim(), { header: true, dynamicTyping: false, skipEmptyLines: true });
+      if (!parsed.data.length || !(parsed.meta.fields || []).length) { wrap().innerHTML = resourceListHtml(resources, t('det.nochart')); return; }
+      renderDetail(parsed.data, parsed.meta.fields);
+    } else if (jsonRes) {
+      const data = await (await fetch(jsonRes.url)).json();
+      const rows = Array.isArray(data) ? data
+        : Array.isArray(data?.records) ? data.records
+        : Array.isArray(data?.data) ? data.data : null;
+      if (rows && rows.length && rows[0] && typeof rows[0] === 'object' && !Array.isArray(rows[0])) {
+        const fields = [...new Set(rows.flatMap((o) => Object.keys(o)))];
+        renderDetail(rows, fields);
+      } else {
+        wrap().innerHTML = resourceListHtml(resources, t('det.nochart'));
+      }
+    } else {
+      // PDF / XML / GeoJSON / XLSX — not chartable; offer the files.
+      wrap().innerHTML = resourceListHtml(resources, t('det.nochart'));
+    }
   } catch (e) {
-    $('#detail-chart-wrap').innerHTML = `<div class="empty">${t('det.csverror', { e: escapeHtml(e.message) })}</div>`;
+    wrap().innerHTML = `<div class="empty">${t('det.csverror', { e: escapeHtml(e.message) })}</div>`;
   }
+}
+
+// Detect non-text payloads (e.g. a PDF served as a resource) so we never dump binary.
+function looksBinary(text) {
+  if (!text) return true;
+  if (text.slice(0, 5) === '%PDF') return true;
+  const sample = text.slice(0, 2000);
+  let bad = 0;
+  for (let i = 0; i < sample.length; i++) { const c = sample.charCodeAt(i); if (c === 0 || c === 0xfffd) bad++; }
+  return bad / Math.max(1, sample.length) > 0.05;
+}
+
+// Friendly fallback: list a dataset's files as download links instead of an error.
+function resourceListHtml(resources, lead) {
+  const items = resources.map((r) => {
+    const fmt = (r.format || '?').toUpperCase();
+    const name = escapeHtml(r.name || r.url.split('/').pop() || fmt);
+    return `<li><span class="tag tag--fmt">${fmt}</span> ${name} — <a href="${r.url}" target="_blank" rel="noopener">${t('det.download')}</a></li>`;
+  }).join('');
+  return `<p class="muted" style="margin-top:8px">${lead}</p><ul class="bullets">${items || '<li>—</li>'}</ul>`;
 }
 
 function renderDetail(rows, fields) {
