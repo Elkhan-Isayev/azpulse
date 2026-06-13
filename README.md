@@ -21,7 +21,7 @@ AzPulse reads **769 official government datasets** straight from the CKAN API be
 database, no build step. Just open the page and the country's data renders itself.
 
 The headline feature: a panel that answers a real founder's question —
-**“which sectors is the economy actually hiring in?”** — and lets you click any sector for a full,
+**"which sectors is the economy actually hiring in?"** — and lets you click any sector for a full,
 data-driven breakdown.
 
 ## 📸 Screenshots
@@ -38,16 +38,18 @@ data-driven breakdown.
 
 - **Live KPIs** — datasets, categories, organizations, CSV resources, fetched on every load.
 - **Datasets-by-category chart** — click a bar to drill into that sector.
-- **🏭 Economy — “where is demand growing?”** — loads the official *employment-by-economic-activity*
+- **🏭 Economy — "where is demand growing?"** — loads the official *employment-by-economic-activity*
   dataset live, computes each sector's 5-year job growth, and ranks them. Green = expanding (demand signal),
   red = contracting. **Click any sector** for a breakdown: 5y/10y growth, share of total employment,
-  rank, momentum (accelerating vs. slowing), a full multi-year trend line, and a plain-English verdict.
+  rank, momentum (accelerating vs. slowing), a full multi-year trend line, and a plain-language verdict.
 - **Dataset explorer** — search all 769 datasets, filter by category.
 - **Auto-charting + year-over-year** — open any dataset; AzPulse parses its CSV, detects whether it's a
   time series (recognizes a *year column*) and draws a multi-year trend, otherwise a ranked bar chart —
   always with a data table.
+- **Bilingual UI** — Azerbaijani by default, with an AZ / EN switch in the header; the choice is remembered
+  between visits.
 
-## 📊 “Where is demand growing?” — methodology
+## 📊 "Where is demand growing?" — methodology
 
 A practical question for entrepreneurs: **in which sectors is the country adding jobs, and in which is it
 shedding them?**
@@ -86,6 +88,7 @@ Pure static site, zero build step.
 azpulse/
 ├── index.html            # layout
 ├── css/styles.css        # styling
+├── js/i18n.js            # AZ + EN string tables
 ├── js/app.js             # CKAN client + charts + economy analysis
 ├── docs/
 │   ├── ARCHITECTURE.md   # how it works under the hood
@@ -111,12 +114,6 @@ GitHub Pages serves the `main` branch root. Any push to `main` updates the live 
 
 To replicate elsewhere: push the files, then **Settings → Pages → Source: Deploy from a branch →
 `main` / root**.
-
-## 🌍 Languages
-
-The interface is fully bilingual: **Azerbaijani by default**, with an **AZ / EN** switch in the top-right.
-All UI text, category names, sector names, and the generated economy narrative are localized; the language
-choice is remembered between visits.
 
 ## ⚖️ Data, licensing & disclaimer
 
