@@ -112,10 +112,36 @@ GitHub Pages serves the `main` branch root. Any push to `main` updates the live 
 To replicate elsewhere: push the files, then **Settings → Pages → Source: Deploy from a branch →
 `main` / root**.
 
-## ⚖️ Data & licensing
+## 🌍 Languages
+
+The interface is fully bilingual: **Azerbaijani by default**, with an **AZ / EN** switch in the top-right.
+All UI text, category names, sector names, and the generated economy narrative are localized; the language
+choice is remembered between visits.
+
+## ⚖️ Data, licensing & disclaimer
 
 All data belongs to the publishing Azerbaijani state bodies and is distributed as open data by the IDDA Open
-Data Portal. AzPulse only **fetches and visualizes** that public data — it stores and modifies nothing.
+Data Portal ([opendata.az](https://opendata.az)). AzPulse only **fetches and visualizes** that public data in
+the browser — it does not own, host, alter, or redistribute it.
+
+> ### Disclaimer — no warranty, no liability
+>
+> AzPulse is an **independent, non-commercial, open-source project** and is **not affiliated with, endorsed
+> by, or representing** opendata.az, IDDA, or any government body of the Republic of Azerbaijan.
+>
+> The dashboard and all figures, rankings, charts, and "demand" interpretations it produces are provided
+> **"as is", for informational and educational purposes only**, with **no warranty of any kind** — including
+> accuracy, completeness, timeliness, or fitness for any purpose. Numbers are computed automatically from
+> third-party source data that may itself contain errors, gaps, or revisions.
+>
+> **Nothing here is financial, investment, business, legal, or professional advice.** Any decision you make —
+> including where to start or run a business — is **entirely your own responsibility**, and you should
+> independently verify the underlying data and consult qualified professionals first.
+>
+> To the maximum extent permitted by applicable law, the author **accepts no liability whatsoever** for any
+> loss or damage of any kind arising directly or indirectly from the use of, reliance on, or interpretation of
+> this project or its data. By using AzPulse you accept this disclaimer. See also the [MIT License](LICENSE),
+> whose warranty and liability terms apply to all use of this software.
 
 ## 🧭 Roadmap
 

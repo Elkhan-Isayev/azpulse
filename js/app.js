@@ -24,6 +24,8 @@ const CATEGORIES = {
 };
 
 const $ = (sel) => document.querySelector(sel);
+const t = (k, p) => I18N.t(k, p);
+function catLabel(g) { const c = CATEGORIES[g.name]; return c ? c[I18N.lang] : g.display_name; }
 let categoryChartRef = null;
 let detailChartRef = null;
 let activeCat = '';
@@ -47,7 +49,7 @@ function setStatus(state, text) {
 
 /* ---------- Overview / KPIs / category chart ---------- */
 async function loadOverview() {
-  setStatus('pending', 'connecting…');
+  setStatus('pending', t('status.connecting'));
   const r = await ckan('package_search', {
     rows: 0,
     'facet.field': '["groups","organization","res_format"]',
@@ -68,13 +70,13 @@ async function loadOverview() {
   renderCategoryChart(groups);
   renderChips(groups);
 
-  setStatus('ok', 'live · opendata.az');
-  $('#refreshed').textContent = '· updated ' + new Date().toLocaleTimeString();
+  setStatus('ok', t('status.live'));
+  $('#refreshed').textContent = t('status.updated', { time: new Date().toLocaleTimeString() });
 }
 
 function renderCategoryChart(groups) {
   const sorted = [...groups].sort((a, b) => b.count - a.count);
-  const labels = sorted.map((g) => (CATEGORIES[g.name]?.en || g.display_name));
+  const labels = sorted.map((g) => catLabel(g));
   const data = sorted.map((g) => g.count);
   const colors = sorted.map((g) => CATEGORIES[g.name]?.color || '#4f8cff');
   const slugs = sorted.map((g) => g.name);
@@ -86,7 +88,7 @@ function renderCategoryChart(groups) {
     options: {
       indexAxis: 'y',
       maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${c.parsed.x} datasets` } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => t('cat.tooltip', { n: c.parsed.x }) } } },
       scales: {
         x: { grid: { color: '#26304a' }, ticks: { color: '#93a0bb' } },
         y: { grid: { display: false }, ticks: { color: '#e8edf6' } },
@@ -98,12 +100,11 @@ function renderCategoryChart(groups) {
 
 function renderChips(groups) {
   const wrap = $('#chips');
-  const all = `<button class="chip ${activeCat === '' ? 'active' : ''}" data-cat="">All</button>`;
+  const all = `<button class="chip ${activeCat === '' ? 'active' : ''}" data-cat="">${t('chip.all')}</button>`;
   const items = [...groups]
     .sort((a, b) => b.count - a.count)
     .map((g) => {
-      const c = CATEGORIES[g.name];
-      const label = c ? c.en : g.display_name;
+      const label = catLabel(g);
       return `<button class="chip ${activeCat === g.name ? 'active' : ''}" data-cat="${g.name}">${label} <span style="opacity:.6">${g.count}</span></button>`;
     })
     .join('');
@@ -113,7 +114,7 @@ function renderChips(groups) {
 /* ---------- Dataset browsing ---------- */
 async function loadDatasets() {
   const results = $('#results');
-  results.innerHTML = '<div class="empty"><span class="spinner"></span> Loading datasets…</div>';
+  results.innerHTML = `<div class="empty"><span class="spinner"></span> ${t('res.loading')}</div>`;
   const params = { rows: 60, sort: 'metadata_modified desc' };
   if (lastQuery) params.q = lastQuery;
   if (activeCat) params.fq = `groups:${activeCat}`;
@@ -121,14 +122,14 @@ async function loadDatasets() {
     const r = await ckan('package_search', params);
     renderResults(r.results, r.count);
   } catch (e) {
-    results.innerHTML = `<div class="empty">Could not load datasets: ${e.message}</div>`;
+    results.innerHTML = `<div class="empty">${t('res.error', { e: escapeHtml(e.message) })}</div>`;
   }
 }
 
 function renderResults(list, total) {
   const results = $('#results');
   if (!list.length) {
-    results.innerHTML = '<div class="empty">No datasets match your search.</div>';
+    results.innerHTML = `<div class="empty">${t('res.none')}</div>`;
     $('#results-foot').textContent = '';
     return;
   }
@@ -141,7 +142,7 @@ function renderResults(list, total) {
         <h3>${escapeHtml(p.title || p.name)}</h3>
         <div class="card-meta">
           ${org ? `<span class="tag">${escapeHtml(org)}</span>` : ''}
-          <span class="tag">${(p.resources || []).length} files</span>
+          <span class="tag">${t('card.files', { n: (p.resources || []).length })}</span>
           ${fmtTags}
         </div>
       </div>`;
@@ -151,7 +152,7 @@ function renderResults(list, total) {
   [...results.querySelectorAll('.card')].forEach((el, i) => {
     el.addEventListener('click', () => openDataset(list[i]));
   });
-  $('#results-foot').textContent = `Showing ${list.length} of ${total.toLocaleString()} datasets`;
+  $('#results-foot').textContent = t('res.showing', { n: list.length, total: total.toLocaleString() });
 }
 
 function selectCategory(slug) {
@@ -170,15 +171,16 @@ async function openDataset(pkg) {
 
   const csvRes = (pkg.resources || []).find((r) => (r.format || '').toUpperCase() === 'CSV') || (pkg.resources || [])[0];
   const org = pkg.organization?.title || '';
+  const portalLang = I18N.lang === 'en' ? 'en' : 'az';
   body.innerHTML = `
     <h2>${escapeHtml(pkg.title || pkg.name)}</h2>
-    <div class="sub">${escapeHtml(org)} · ${(pkg.resources || []).length} resource(s)
-      · <a href="https://opendata.az/en/datasets/${pkg.name}" target="_blank" rel="noopener">view on portal ↗</a></div>
+    <div class="sub">${escapeHtml(org)} · ${t('det.resources', { n: (pkg.resources || []).length })}
+      · <a href="https://opendata.az/${portalLang}/datasets/${pkg.name}" target="_blank" rel="noopener">${t('det.viewportal')}</a></div>
     ${pkg.notes ? `<p class="muted">${escapeHtml(pkg.notes).slice(0, 320)}</p>` : ''}
-    <div id="detail-chart-wrap"><div class="empty"><span class="spinner"></span> Loading data…</div></div>`;
+    <div id="detail-chart-wrap"><div class="empty"><span class="spinner"></span> ${t('det.loading')}</div></div>`;
 
   if (!csvRes || !csvRes.url) {
-    $('#detail-chart-wrap').innerHTML = '<div class="empty">No tabular (CSV) data to chart in this dataset.</div>';
+    $('#detail-chart-wrap').innerHTML = `<div class="empty">${t('det.nocsv')}</div>`;
     return;
   }
   try {
@@ -186,19 +188,19 @@ async function openDataset(pkg) {
     const parsed = Papa.parse(text.trim(), { header: true, dynamicTyping: false, skipEmptyLines: true });
     renderDetail(parsed.data, parsed.meta.fields || []);
   } catch (e) {
-    $('#detail-chart-wrap').innerHTML = `<div class="empty">Could not load CSV (the portal may block this file from the browser).<br><small>${e.message}</small></div>`;
+    $('#detail-chart-wrap').innerHTML = `<div class="empty">${t('det.csverror', { e: escapeHtml(e.message) })}</div>`;
   }
 }
 
 function renderDetail(rows, fields) {
   const wrap = $('#detail-chart-wrap');
-  if (!rows.length || !fields.length) { wrap.innerHTML = '<div class="empty">Empty dataset.</div>'; return; }
+  if (!rows.length || !fields.length) { wrap.innerHTML = `<div class="empty">${t('det.empty')}</div>`; return; }
 
   const { labelCol, numericCols, isTimeSeries, sortByYear } = analyzeColumns(rows, fields);
   wrap.innerHTML = '<div class="chart-box"><canvas id="detailChart"></canvas></div><div id="detail-table"></div>';
 
   if (!numericCols.length || !labelCol) {
-    wrap.innerHTML = '<div class="empty">This dataset has no clearly numeric columns to chart — showing the raw table below.</div><div id="detail-table"></div>';
+    wrap.innerHTML = `<div class="empty">${t('det.nonumeric')}</div><div id="detail-table"></div>`;
     renderTable(rows, fields);
     return;
   }
@@ -211,11 +213,11 @@ function renderDetail(rows, fields) {
     // Year-over-year: sort ascending by year so the trend reads left→right.
     viewRows = [...rows].filter((r) => String(r[labelCol] ?? '').trim() !== '')
       .sort((a, b) => parseInt(a[labelCol], 10) - parseInt(b[labelCol], 10));
-    if (numericCols.length > maxSeries) note = `Showing first ${maxSeries} of ${numericCols.length} series — open the table for all columns.`;
+    if (numericCols.length > maxSeries) note = t('det.note.series', { max: maxSeries, total: numericCols.length });
   } else if (!isTimeSeries && rows.length > 25) {
     const key = numericCols[0];
     viewRows = [...rows].sort((a, b) => num(b[key]) - num(a[key])).slice(0, 25);
-    note = `Showing top 25 of ${rows.length} rows by “${key}”.`;
+    note = t('det.note.top', { total: rows.length, key });
   }
 
   const labels = viewRows.map((r) => r[labelCol]);
@@ -255,7 +257,7 @@ function renderTable(rows, fields, note = '') {
   $('#detail-table').innerHTML =
     `${note ? `<div class="dnote">${note}</div>` : ''}
      <table class="dtable"><thead><tr>${head}</tr></thead><tbody>${bodyRows}</tbody></table>
-     ${rows.length > 50 ? `<div class="dnote">Table preview limited to 50 of ${rows.length} rows.</div>` : ''}`;
+     ${rows.length > 50 ? `<div class="dnote">${t('det.table.limit', { total: rows.length })}</div>` : ''}`;
 }
 
 /* ---------- Heuristics ---------- */
@@ -352,11 +354,12 @@ const SECTOR_EN = {
 };
 function sectorLabel(col) {
   const base = col.replace(/\(min nəfər\)/i, '').trim();
-  return SECTOR_EN[base] || base;
+  return I18N.lang === 'en' ? (SECTOR_EN[base] || base) : base;
 }
 
 async function loadEconomyInsights() {
   const take = $('#econ-takeaway');
+  take.innerHTML = `${t('econ.loading')} <span class="spinner"></span>`;
   try {
     const r = await ckan('package_search', { q: 'İqtisadi Fəaliyyət Növləri Təsnifatı üzrə məşğul əhalinin sayı', rows: 5 });
     let res = null;
@@ -371,13 +374,13 @@ async function loadEconomyInsights() {
     const parsed = Papa.parse(text.trim(), { header: true, skipEmptyLines: true });
     renderEconomy(parsed.data, parsed.meta.fields || []);
   } catch (e) {
-    take.innerHTML = 'Could not load economy insight: ' + escapeHtml(e.message);
+    take.innerHTML = t('econ.error', { e: escapeHtml(e.message) });
   }
 }
 
 function renderEconomy(rows, fields) {
   const yearCol = fields.find((f) => f && isYearCol(rows, f));
-  if (!yearCol) { $('#econ-takeaway').textContent = 'Unexpected data shape — no year column found.'; return; }
+  if (!yearCol) { $('#econ-takeaway').textContent = t('econ.noyear'); return; }
 
   const sectorCols = fields.filter(
     (f) => f && f !== yearCol && isNumericCol(rows, f) && !/cəmi/i.test(f)
@@ -385,13 +388,15 @@ function renderEconomy(rows, fields) {
   const byYear = {};
   rows.forEach((r) => { const y = parseInt(r[yearCol], 10); if (y >= 1900 && y <= 2100) byYear[y] = r; });
   const years = Object.keys(byYear).map(Number).sort((a, b) => a - b);
-  if (years.length < 2) { $('#econ-takeaway').textContent = 'Not enough years to compare.'; return; }
+  if (years.length < 2) { $('#econ-takeaway').textContent = t('econ.fewyears'); return; }
 
   const latest = years[years.length - 1];
   let base = latest - 5;
   while (!byYear[base] && base < latest) base++;        // nearest available year ≥ latest-5
   if (!byYear[base]) base = years[0];
-  $('#econ-range').textContent = `${base} → ${latest}`;
+  const desc = $('#econ-desc');
+  desc.innerHTML = t('econ.desc', { range: `${base} → ${latest}` });
+  desc.dataset.ready = '1';
 
   const items = [];
   for (const col of sectorCols) {
@@ -407,11 +412,8 @@ function renderEconomy(rows, fields) {
   // Takeaway: name the top movers.
   const top = items.slice(0, 3);
   const fmt = (n) => (n >= 0 ? '+' : '') + n.toFixed(0) + '%';
-  $('#econ-takeaway').innerHTML =
-    `Over <b>${base}–${latest}</b>, employment grew fastest in ` +
-    top.map((t) => `<b>${escapeHtml(t.name)}</b> (${fmt(t.g)})`).join(', ') +
-    `. These are the sectors pulling in labour fastest — the strongest demand/expansion signal for where to start a business. ` +
-    `The shrinking sectors (red) are contracting and harder to enter profitably.`;
+  const list = top.map((it) => `<b>${escapeHtml(it.name)}</b> (${fmt(it.g)})`).join(', ');
+  $('#econ-takeaway').innerHTML = t('econ.takeaway', { base, latest, list });
 
   const labels = items.map((i) => i.name);
   const data = items.map((i) => +i.g.toFixed(1));
@@ -428,11 +430,11 @@ function renderEconomy(rows, fields) {
         legend: { display: false },
         tooltip: { callbacks: { label: (c) => {
           const it = items[c.dataIndex];
-          return `${c.parsed.x >= 0 ? '+' : ''}${c.parsed.x}%  (${it.a} → ${it.b} thsd employed)`;
+          return t('econ.tooltip', { sign: c.parsed.x >= 0 ? '+' : '', x: c.parsed.x, a: it.a, b: it.b });
         } } },
       },
       scales: {
-        x: { grid: { color: '#26304a' }, ticks: { color: '#93a0bb', callback: (v) => v + '%' }, title: { display: true, text: `employment change ${base}→${latest}`, color: '#93a0bb' } },
+        x: { grid: { color: '#26304a' }, ticks: { color: '#93a0bb', callback: (v) => v + '%' }, title: { display: true, text: t('econ.axis', { base, latest }), color: '#93a0bb' } },
         y: { grid: { display: false }, ticks: { color: '#e8edf6', font: { size: 11 } } },
       },
       onClick: (_e, els) => { if (els.length) openSectorDetail(items[els[0].index]); },
@@ -467,9 +469,9 @@ function openSectorDetail(item) {
   const gPrev5 = growthBetween(latest - 10, latest - 5);
   let momentum = '';
   if (g5 != null && gPrev5 != null) {
-    if (g5 > gPrev5 + 2) momentum = 'accelerating';
-    else if (g5 < gPrev5 - 2) momentum = 'slowing';
-    else momentum = 'steady';
+    if (g5 > gPrev5 + 2) momentum = t('mom.accelerating');
+    else if (g5 < gPrev5 - 2) momentum = t('mom.slowing');
+    else momentum = t('mom.steady');
   }
 
   // Share of total employment.
@@ -491,36 +493,37 @@ function openSectorDetail(item) {
   // Data-driven narrative.
   const verdict = (() => {
     const fast = item.g >= 15, grow = item.g > 0, big = share != null && share >= 8;
-    if (!grow) return `This sector is <b>contracting</b> — employment fell ${pct(item.g)} over ${d.base}–${latest}. Demand is shrinking; entering it now means competing for a smaller pie.`;
-    if (fast && !big) return `A <b>fast-growing, still-small</b> sector (${share != null ? share.toFixed(1) + '% of all jobs' : 'minor share'}). Rapid hiring + low base = an <b>emerging opportunity</b> with room for new entrants.`;
-    if (fast && big) return `A <b>large sector that is still expanding fast</b> (${pct(item.g)}). Strong, broad demand — competitive, but the market is clearly growing.`;
-    if (grow && big) return `A <b>mature, stable</b> sector — large share of employment, growing modestly (${pct(item.g)}). Reliable demand, but harder to differentiate.`;
-    return `<b>Moderate growth</b> (${pct(item.g)}). Demand is rising slowly — viable, but not a standout signal.`;
+    const shareStr = share != null ? t('share.of', { x: share.toFixed(1) }) : t('share.minor');
+    if (!grow) return t('verdict.contracting', { g: pct(item.g), base: d.base, latest });
+    if (fast && !big) return t('verdict.emerging', { share: shareStr });
+    if (fast && big) return t('verdict.bigfast', { g: pct(item.g) });
+    if (grow && big) return t('verdict.mature', { g: pct(item.g) });
+    return t('verdict.moderate', { g: pct(item.g) });
   })();
 
   $('#drawer').hidden = false;
   $('#drawer-backdrop').hidden = false;
   $('#drawer-body').innerHTML = `
     <h2>${escapeHtml(item.name)}</h2>
-    <div class="sub">Employment in this sector · ${yearFirst}–${latest} · official data, computed live</div>
+    <div class="sub">${t('sec.sub', { first: yearFirst, latest })}</div>
 
     <div class="stat-grid">
-      <div class="stat"><div class="stat-v">${valLatest.toLocaleString()}<span class="stat-u"> thsd</span></div><div class="stat-l">employed (${latest})</div></div>
-      <div class="stat"><div class="stat-v">${pct(g5)}</div><div class="stat-l">last 5 years</div></div>
-      <div class="stat"><div class="stat-v">${pct(g10)}</div><div class="stat-l">last 10 years</div></div>
-      <div class="stat"><div class="stat-v">${share != null ? share.toFixed(1) + '%' : '—'}</div><div class="stat-l">of all jobs</div></div>
+      <div class="stat"><div class="stat-v">${valLatest.toLocaleString()}<span class="stat-u"> ${t('sec.unit')}</span></div><div class="stat-l">${t('sec.employed', { year: latest })}</div></div>
+      <div class="stat"><div class="stat-v">${pct(g5)}</div><div class="stat-l">${t('sec.5y')}</div></div>
+      <div class="stat"><div class="stat-v">${pct(g10)}</div><div class="stat-l">${t('sec.10y')}</div></div>
+      <div class="stat"><div class="stat-v">${share != null ? share.toFixed(1) + '%' : '—'}</div><div class="stat-l">${t('sec.share')}</div></div>
     </div>
 
     <div class="takeaway">${verdict}</div>
 
     <ul class="bullets">
-      <li>Ranked <b>#${rankGrowth} of ${n}</b> sectors by 5-year job growth, and <b>#${rankSize} of ${n}</b> by sheer size.</li>
-      <li>Since ${yearFirst}: employment went ${valFirst != null ? `from ${valFirst.toLocaleString()} to ${valLatest.toLocaleString()} thsd (${pct(gAll)})` : '—'}.</li>
-      ${momentum ? `<li>Recent momentum is <b>${momentum}</b> (last 5y ${pct(g5)} vs prior 5y ${pct(gPrev5)}).</li>` : ''}
+      <li>${t('sec.rank', { rg: rankGrowth, rs: rankSize, n })}</li>
+      <li>${valFirst != null ? t('sec.since', { year: yearFirst, a: valFirst.toLocaleString(), b: valLatest.toLocaleString(), g: pct(gAll) }) : '—'}</li>
+      ${momentum ? `<li>${t('sec.momentum', { m: momentum, g5: pct(g5), gp: pct(gPrev5) })}</li>` : ''}
     </ul>
 
     <div class="chart-box" style="height:300px"><canvas id="sectorChart"></canvas></div>
-    <p class="dnote">Thousands of people employed in “${escapeHtml(item.name)}”, every published year. A rising line = the sector is pulling in more workers = sustained demand.</p>
+    <p class="dnote">${t('sec.chartnote', { name: escapeHtml(item.name) })}</p>
   `;
 
   if (window.__sectorChart) window.__sectorChart.destroy();
@@ -538,7 +541,7 @@ function openSectorDetail(item) {
     },
     options: {
       maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${c.parsed.y} thsd employed` } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => t('sec.tooltip', { y: c.parsed.y }) } } },
       scales: {
         x: { grid: { color: '#26304a' }, ticks: { color: '#93a0bb' } },
         y: { grid: { color: '#26304a' }, ticks: { color: '#93a0bb' } },
@@ -555,9 +558,37 @@ function closeDrawer() {
   if (window.__sectorChart) { window.__sectorChart.destroy(); window.__sectorChart = null; }
 }
 
-function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+function debounce(fn, ms) { let timer; return (...a) => { clearTimeout(timer); timer = setTimeout(() => fn(...a), ms); }; }
+
+// Apply translations to all static [data-i18n*] elements + reflect active language.
+function applyStaticI18n() {
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
+  document.querySelectorAll('[data-i18n-ph]').forEach((el) => { el.setAttribute('placeholder', t(el.dataset.i18nPh)); });
+  document.documentElement.lang = I18N.lang;
+  document.querySelectorAll('.lang-btn').forEach((b) => b.classList.toggle('active', b.dataset.lang === I18N.lang));
+  // econ description carries a dynamic range; show a placeholder until data loads.
+  const desc = $('#econ-desc');
+  if (desc && !desc.dataset.ready) desc.innerHTML = t('econ.desc', { range: '…' });
+}
+
+function switchLang(l) {
+  if (l === I18N.lang) return;
+  I18N.set(l);
+  applyStaticI18n();
+  closeDrawer();
+  loadOverview().catch((e) => setStatus('err', t('status.failed', { e: e.message })));
+  loadEconomyInsights();
+  loadDatasets();
+}
 
 function init() {
+  applyStaticI18n();
+  $('.lang').addEventListener('click', (e) => {
+    const b = e.target.closest('.lang-btn');
+    if (b) switchLang(b.dataset.lang);
+  });
+
   $('#drawer-close').addEventListener('click', closeDrawer);
   $('#drawer-backdrop').addEventListener('click', closeDrawer);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
@@ -571,7 +602,7 @@ function init() {
   });
   $('#search').addEventListener('input', debounce((e) => { lastQuery = e.target.value.trim(); loadDatasets(); }, 350));
 
-  loadOverview().catch((e) => setStatus('err', 'connection failed: ' + e.message));
+  loadOverview().catch((e) => setStatus('err', t('status.failed', { e: e.message })));
   loadEconomyInsights();
   loadDatasets();
 }
